@@ -11,6 +11,7 @@ const CampusMap = {
     currentRoute: [],
     activeSource: null,
     activeDest: null,
+    selectedLocationName: null,
 
     // Pan & Zoom state
     zoom: 1,
@@ -21,18 +22,18 @@ const CampusMap = {
     startY: 0,
 
     categoryColors: {
-        ENTRY: '#10b981',
-        ACADEMIC: '#818cf8',
-        LABORATORY: '#38bdf8',
-        ADMINISTRATION: '#f59e0b',
-        LIBRARY: '#a855f7',
-        FOOD: '#34d399',
-        HOSTEL: '#f43f5e',
-        SPORTS: '#fb923c',
-        HEALTH: '#ef4444',
-        AMENITIES: '#c084fc',
-        PARKING: '#64748b',
-        OTHER: '#94a3b8'
+        ENTRY: '#2E7D5B',
+        ACADEMIC: '#527E61',
+        LABORATORY: '#78A27F',
+        ADMINISTRATION: '#9AAA8E',
+        LIBRARY: '#B99A60',
+        FOOD: '#E9785B',
+        HOSTEL: '#A77766',
+        SPORTS: '#78A99B',
+        HEALTH: '#C96F5A',
+        AMENITIES: '#879C8C',
+        PARKING: '#7B887E',
+        OTHER: '#9AA49B'
     },
 
     init(svgElementId = 'campus-svg-map') {
@@ -52,22 +53,23 @@ const CampusMap = {
     attachEventListeners() {
         if (!this.svg) return;
 
-        this.svg.addEventListener('mousedown', (e) => {
+        this.svg.addEventListener('pointerdown', (e) => {
             if (e.target.closest('.map-node')) return; // Allow node clicking
             this.isDragging = true;
             this.startX = e.clientX - this.panX;
             this.startY = e.clientY - this.panY;
+            this.svg.setPointerCapture(e.pointerId);
             this.svg.style.cursor = 'grabbing';
         });
 
-        window.addEventListener('mousemove', (e) => {
+        window.addEventListener('pointermove', (e) => {
             if (!this.isDragging) return;
             this.panX = e.clientX - this.startX;
             this.panY = e.clientY - this.startY;
             this.updateTransform();
         });
 
-        window.addEventListener('mouseup', () => {
+        window.addEventListener('pointerup', () => {
             this.isDragging = false;
             if (this.svg) this.svg.style.cursor = 'grab';
         });
@@ -91,6 +93,15 @@ const CampusMap = {
         this.updateTransform();
     },
 
+    focusLocation(location) {
+        if (!location || !location.mapCoordinates) return;
+        this.zoom = 1.35;
+        this.panX = 500 - location.mapCoordinates.x * this.zoom;
+        this.panY = 450 - location.mapCoordinates.y * this.zoom;
+        this.updateTransform();
+        this.showNodePopover(location, location.mapCoordinates.x, location.mapCoordinates.y);
+    },
+
     updateTransform() {
         if (this.gMap) {
             this.gMap.setAttribute('transform', `translate(${this.panX}, ${this.panY}) scale(${this.zoom})`);
@@ -107,13 +118,6 @@ const CampusMap = {
         // 1. Defs for glow filters & markers
         const defs = document.createElementNS('http://www.w3.org/2000/svg', 'defs');
         defs.innerHTML = `
-            <filter id="glow-route" x="-30%" y="-30%" width="160%" height="160%">
-                <feGaussianBlur stdDeviation="3" result="blur" />
-                <feMerge>
-                    <feMergeNode in="blur" />
-                    <feMergeNode in="SourceGraphic" />
-                </feMerge>
-            </filter>
             <filter id="glow-node" x="-40%" y="-40%" width="180%" height="180%">
                 <feGaussianBlur stdDeviation="4" result="blur" />
                 <feMerge>
@@ -131,14 +135,14 @@ const CampusMap = {
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', x); line.setAttribute('y1', 0);
             line.setAttribute('x2', x); line.setAttribute('y2', 900);
-            line.setAttribute('stroke', '#6366f1'); line.setAttribute('stroke-width', '1');
+            line.setAttribute('stroke', '#9bab98'); line.setAttribute('stroke-width', '1');
             gGrid.appendChild(line);
         }
         for (let y = 0; y <= 900; y += 100) {
             const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
             line.setAttribute('x1', 0); line.setAttribute('y1', y);
             line.setAttribute('x2', 1000); line.setAttribute('y2', y);
-            line.setAttribute('stroke', '#6366f1'); line.setAttribute('stroke-width', '1');
+            line.setAttribute('stroke', '#9bab98'); line.setAttribute('stroke-width', '1');
             gGrid.appendChild(line);
         }
         this.gMap.appendChild(gGrid);
@@ -219,6 +223,42 @@ const CampusMap = {
         }
     },
 
+    renderHomePreview(locations, edges) {
+        const preview = document.getElementById('home-map-preview');
+        if (!preview) return;
+        preview.replaceChildren();
+
+        const lineGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        lineGroup.setAttribute('class', 'preview-edges');
+        (edges || []).forEach(edge => {
+            const source = locations.find(location => location.name === edge.source);
+            const destination = locations.find(location => location.name === edge.destination);
+            if (!source?.mapCoordinates || !destination?.mapCoordinates) return;
+            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+            line.setAttribute('x1', source.mapCoordinates.x);
+            line.setAttribute('y1', source.mapCoordinates.y);
+            line.setAttribute('x2', destination.mapCoordinates.x);
+            line.setAttribute('y2', destination.mapCoordinates.y);
+            line.setAttribute('class', 'preview-edge');
+            lineGroup.appendChild(line);
+        });
+        preview.appendChild(lineGroup);
+
+        const nodeGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+        nodeGroup.setAttribute('class', 'preview-nodes');
+        (locations || []).forEach(location => {
+            if (!location.mapCoordinates) return;
+            const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+            circle.setAttribute('cx', location.mapCoordinates.x);
+            circle.setAttribute('cy', location.mapCoordinates.y);
+            circle.setAttribute('r', '11');
+            circle.setAttribute('fill', this.categoryColors[location.category] || '#7ccbd5');
+            circle.setAttribute('class', 'preview-node');
+            nodeGroup.appendChild(circle);
+        });
+        preview.appendChild(nodeGroup);
+    },
+
     highlightRoute(path, source, destination) {
         this.currentRoute = path || [];
         this.activeSource = source;
@@ -272,7 +312,8 @@ const CampusMap = {
         if (popover) popover.style.display = 'none';
     },
 
-    showNodePopover(loc, x, y) {
+    async showNodePopover(loc, x, y) {
+        this.selectedLocationName = loc.name;
         let popover = document.getElementById('map-popover');
         if (!popover) {
             popover = document.createElement('div');
@@ -284,22 +325,27 @@ const CampusMap = {
 
         popover.innerHTML = `
             <div style="display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 0.5rem;">
-                <span class="loc-cat-badge">${loc.category || 'LOCATION'}</span>
+                <span class="loc-cat-badge">${App.categoryLabel(loc.category)}</span>
                 <button onclick="document.getElementById('map-popover').style.display='none'" style="background:none; border:none; color:var(--text-muted); cursor:pointer; font-size:1.1rem;">&times;</button>
             </div>
-            <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.2rem;">${loc.name}</h4>
-            <p style="font-size: 0.8rem; color: var(--secondary-light); margin-bottom: 0.5rem;">📍 ${loc.block || ''} • ${loc.floor || ''}</p>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.4; margin-bottom: 0.75rem;">${loc.description || ''}</p>
-            <p style="font-size: 0.75rem; color: #34d399; margin-bottom: 1rem;">🕒 ${loc.timings || 'Open Regular Hours'}</p>
-            <div style="display: flex; gap: 0.5rem;">
-                <button class="btn-primary" style="flex:1; padding:0.45rem 0.6rem; font-size:0.8rem;" onclick="App.setNavDestination('${loc.name.replace(/'/g, "\\'")}')">
-                    🧭 Route To
-                </button>
-                <button class="btn-secondary" style="flex:1; padding:0.45rem 0.6rem; font-size:0.8rem;" onclick="App.setNavSource('${loc.name.replace(/'/g, "\\'")}')">
-                    📍 Start From
-                </button>
+            <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 0.2rem;">${App.escapeHtml(loc.name)}</h4>
+            <p class="map-location-block">${App.escapeHtml(loc.block || 'Campus')} · ${App.escapeHtml(loc.floor || 'Ground')}</p>
+            <p class="map-location-description">${App.escapeHtml(loc.description || 'A place on the KIET campus.')}</p>
+            <p class="map-walk-time">Select Get Directions to see walking time.</p>
+            <div class="map-popover-actions">
+                <button class="btn-primary" onclick="App.setNavDestination('${loc.name.replace(/'/g, "\\'")}'); App.handleCalculateRoute()">Get Directions</button>
+                <button class="btn-secondary" onclick="App.setNavSource('${loc.name.replace(/'/g, "\\'")}')">Start here</button>
             </div>
         `;
         popover.style.display = 'block';
+
+        const source = document.getElementById('nav-source-select')?.value;
+        if (source && source !== loc.name) {
+            const estimate = await Api.findRoute(source, loc.name, 'BFS');
+            if (this.selectedLocationName === loc.name && estimate.found) {
+                const walkingTime = popover.querySelector('.map-walk-time');
+                if (walkingTime) walkingTime.textContent = `About ${estimate.estimatedMinutes} min walk from ${source}`;
+            }
+        }
     }
 };

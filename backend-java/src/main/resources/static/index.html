@@ -3,8 +3,19 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>CampusNav AI — AI-Based Smart Campus Wayfinding System</title>
-  <meta name="description" content="Intelligent campus navigation chatbot combining Java OOP, BFS/DFS pathfinding, and Python NLP intent classification." />
+  <title>KIETGo — Find your way. Go anywhere.</title>
+  <meta name="description" content="KIETGo is a smart campus navigation guide. Find places and walking routes from one simple search." />
+  <script>
+    try {
+      const savedTheme = localStorage.getItem('kietgo-theme');
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.theme = savedTheme === 'dark' || savedTheme === 'light'
+        ? savedTheme
+        : (prefersDark ? 'dark' : 'light');
+    } catch {
+      document.documentElement.dataset.theme = 'light';
+    }
+  </script>
 
   <!-- Google Fonts: Outfit & JetBrains Mono -->
   <link rel="preconnect" href="https://fonts.googleapis.com" />
@@ -29,28 +40,36 @@
             <line x1="15" y1="6" x2="15" y2="21"></line>
           </svg>
         </div>
-        <div class="brand-title">CampusNav <span>AI</span></div>
+        <div class="brand-title">KIETGo</div>
       </a>
 
       <!-- Navigation Tabs -->
-      <nav class="nav-tabs">
-        <button class="nav-btn active" data-tab="home">🏠 Home</button>
-        <button class="nav-btn" data-tab="chat">💬 AI Assistant</button>
-        <button class="nav-btn" data-tab="navigate">🧭 Navigate</button>
-        <button class="nav-btn" data-tab="map">🗺️ Campus Map</button>
-        <button class="nav-btn" data-tab="locations">📍 Locations</button>
-        <button class="nav-btn" data-tab="visualizer">📊 ADSA Lab</button>
-        <button class="nav-btn" data-tab="admin">⚙️ Admin</button>
-        <button class="nav-btn" data-tab="demo" style="color: var(--secondary-light);">🎯 Viva Demo</button>
+      <nav class="nav-tabs" aria-label="Main navigation">
+        <button class="nav-btn active" data-tab="home">Home</button>
+        <button class="nav-btn" data-tab="navigate">Navigate</button>
+        <button class="nav-btn" data-tab="map">Campus Map</button>
+        <button class="nav-btn" data-tab="locations">Places</button>
+        <button class="nav-btn" data-tab="chat">AI Assistant</button>
       </nav>
 
+      <button id="theme-toggle" class="theme-toggle" type="button" aria-label="Switch to dark theme" title="Switch to dark theme" aria-pressed="false">
+        <svg class="theme-icon theme-icon-sun" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round">
+          <circle cx="12" cy="12" r="4"></circle><path d="M12 2v2m0 16v2M4.93 4.93l1.42 1.42m11.3 11.3 1.42 1.42M2 12h2m16 0h2M4.93 19.07l1.42-1.42m11.3-11.3 1.42-1.42"></path>
+        </svg>
+        <svg class="theme-icon theme-icon-moon" viewBox="0 0 24 24" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20.2 15.2A8.4 8.4 0 0 1 8.8 3.8 8.5 8.5 0 1 0 20.2 15.2Z"></path>
+        </svg>
+      </button>
+
       <!-- Live System Status Badge -->
-      <div class="header-status">
-        <div id="header-health-badge" class="status-badge">
-          <div id="header-health-dot" class="status-dot"></div>
-          <span id="header-health-text">Connecting...</span>
+      <details class="secondary-menu">
+        <summary aria-label="Menu">☰</summary>
+        <div class="secondary-menu-panel">
+          <button class="nav-btn" data-tab="admin">Admin</button>
+          <button class="nav-btn" data-tab="visualizer">Developer tools</button>
+          <button class="nav-btn" data-tab="demo">Demo showcase</button>
         </div>
-      </div>
+      </details>
     </div>
   </header>
 
@@ -65,89 +84,45 @@
     <section id="tab-home" class="tab-view active">
       <div class="hero-section">
         <div class="hero-content">
-          <div class="hero-pill">
-            <span>✨ AI-Powered University Wayfinding System</span>
-          </div>
+          <div class="product-badge"><span></span>KIETGo <b>•</b> Smart Campus Navigation</div>
           <h1 class="hero-heading">
-            Find Your Way Around <br />
-            <span class="gradient-text">Campus With Ease.</span>
+            Find your way around <span class="gradient-text">KIET.</span>
           </h1>
           <p class="hero-desc">
-            Ask our intelligent assistant for optimal routes, lecture halls, lab locations, office timings, and departmental details using natural conversational queries.
+            Your campus. Your destination. One simple route.
           </p>
-          <div class="hero-actions">
-            <button class="btn-primary" onclick="App.switchTab('chat')">
-              💬 Open AI Assistant
-            </button>
-            <button class="btn-secondary" onclick="App.switchTab('navigate')">
-              🧭 Calculate Route (BFS)
-            </button>
-            <button class="btn-secondary" onclick="App.switchTab('map')">
-              🗺️ Explore Interactive Map
-            </button>
+          <div class="home-search-wrap">
+            <label for="home-location-search">Where do you want to go?</label>
+            <div class="home-search-row">
+              <input id="home-location-search" class="form-input" list="campus-place-options" placeholder="Search classrooms, departments, labs, library..." autocomplete="off" />
+              <datalist id="campus-place-options"></datalist>
+              <button class="btn-primary" onclick="App.routeFromHome()">Get Directions</button>
+            </div>
+            <button class="text-action" onclick="App.switchTab('map')">Explore Campus <span aria-hidden="true">→</span></button>
           </div>
+          <div class="category-shortcuts" aria-label="Explore by category">
+            <button onclick="App.openPlacesCategory('ACADEMIC')"><span aria-hidden="true">⌂</span>Departments</button>
+            <button onclick="App.openPlacesCategory('LABORATORY')"><span aria-hidden="true">◈</span>Labs</button>
+            <button onclick="App.openPlacesCategory('LIBRARY')"><span aria-hidden="true">▤</span>Library</button>
+            <button onclick="App.openPlacesCategory('FOOD')"><span aria-hidden="true">⌁</span>Food</button>
+            <button onclick="App.openPlacesCategory('HOSTEL')"><span aria-hidden="true">⌂</span>Hostels</button>
+            <button onclick="App.openPlacesCategory('FACILITIES')"><span aria-hidden="true">⌖</span>Facilities</button>
+          </div>
+          <p class="data-notice">Campus place details are sample data and need verification for KIET Korangi.</p>
         </div>
 
         <div class="hero-visual">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem;">
-            <h3 style="font-size: 1.1rem; font-weight: 700;">🏫 Apex Tech Campus</h3>
-            <span class="status-badge" style="background: rgba(99, 102, 241, 0.2); color: var(--primary-light); border-color: rgba(99, 102, 241, 0.4);">
-              Graph G = (V, E)
-            </span>
-          </div>
-
-          <p style="font-size: 0.85rem; color: var(--text-secondary); line-height: 1.5;">
-            Autonomous wayfinding engine integrating Python keyword NLP, Java Spring Boot microservice communication, and ADSA unweighted graph traversal.
-          </p>
-
-          <div class="stat-grid">
-            <div class="stat-card">
-              <div class="stat-num">27</div>
-              <div class="stat-label">Campus Locations (V)</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-num">39</div>
-              <div class="stat-label">Walkway Edges (E)</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-num">BFS</div>
-              <div class="stat-label">Shortest Path O(V+E)</div>
-            </div>
-            <div class="stat-card">
-              <div class="stat-num">NLP</div>
-              <div class="stat-label">Intent Classifier</div>
-            </div>
-          </div>
+            <svg id="home-map-preview" viewBox="0 0 1000 900" aria-hidden="true"></svg>
+            <div class="map-preview-caption"><span>KIET CAMPUS</span><button onclick="App.switchTab('map')">Open campus map <b>↗</b></button></div>
         </div>
       </div>
 
-      <!-- 4 Academic Pillars Banner -->
-      <div class="pillars-banner">
-        <div class="pillar-card">
-          <span class="pillar-tag">PILLAR 1 &bull; AI</span>
-          <h4 class="pillar-title">Intelligent Agent</h4>
-          <p class="pillar-desc">Natural query understanding, entity extraction, and multi-intent reasoning.</p>
-        </div>
-        <div class="pillar-card">
-          <span class="pillar-tag">PILLAR 2 &bull; ADSA</span>
-          <h4 class="pillar-title">Graph Algorithms</h4>
-          <p class="pillar-desc">Manual BFS shortest path and DFS graph traversal implementations.</p>
-        </div>
-        <div class="pillar-card">
-          <span class="pillar-tag">PILLAR 3 &bull; OOPJ</span>
-          <h4 class="pillar-title">Java Spring Boot</h4>
-          <p class="pillar-desc">Clean OOP architecture, strategy pattern, encapsulation, and RESTful APIs.</p>
-        </div>
-        <div class="pillar-card">
-          <span class="pillar-tag">PILLAR 4 &bull; PYTHON</span>
-          <h4 class="pillar-title">Intent Classifier</h4>
-          <p class="pillar-desc">Dedicated microservice performing rule-based NLP intent classification.</p>
-        </div>
-      </div>
+      <div class="home-section-heading"><div><span class="eyebrow">MAKE YOUR WAY</span><h2>Everything on campus, closer.</h2></div><button class="text-action" onclick="App.switchTab('locations')">Browse all places <span aria-hidden="true">→</span></button></div>
+      <div id="home-featured-places" class="featured-places"></div>
     </section>
 
     <!-- -------------------------------------------------------------
-         TAB 2: CAMPUS AI ASSISTANT (CHATBOT)
+         TAB 2: KIETGO ASSISTANT
          ------------------------------------------------------------- -->
     <section id="tab-chat" class="tab-view">
       <div class="chat-layout">
@@ -167,8 +142,8 @@
                 </svg>
               </div>
               <div class="bot-meta">
-                <h3>Campus AI Assistant</h3>
-                <p>Intelligent Campus Wayfinding & Information Agent</p>
+                <h3>Ask KIETGo</h3>
+                <p>Your smart campus guide.</p>
               </div>
             </div>
             <button class="btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;" onclick="document.getElementById('chat-history-container').innerHTML='';">
@@ -181,22 +156,21 @@
             <!-- Welcome Bot Message -->
             <div class="chat-msg bot">
               <div class="msg-bubble">
-                <span class="intent-chip">👋 WELCOME AGENT</span>
                 <p>
-                  Hello! I'm your <strong>Campus AI Assistant</strong>. You can ask me questions such as:
+                  Hi, I’m KIETGo. Ask me about a place, directions, or what’s nearby.
                 </p>
                 <div class="chat-actions-row">
-                  <button class="quick-action-btn" onclick="App.handleSendMessage('How do I reach AI Lab from Main Gate?')">
-                    🧭 How do I reach AI Lab from Main Gate?
+                  <button class="quick-action-btn" onclick="App.handleSendMessage('Where is the library?')">
+                    Where is the library?
                   </button>
-                  <button class="quick-action-btn" onclick="App.handleSendMessage('What are the Library timings?')">
-                    🕒 What are the Library timings?
+                  <button class="quick-action-btn" onclick="App.handleSendMessage('Find the CSM department')">
+                    Find the CSM department
                   </button>
-                  <button class="quick-action-btn" onclick="App.handleSendMessage('Where is the Canteen?')">
-                    📍 Where is the Canteen?
+                  <button class="quick-action-btn" onclick="App.handleSendMessage('Where are the labs?')">
+                    Where are the labs?
                   </button>
-                  <button class="quick-action-btn" onclick="App.handleSendMessage('Tell me about CSE Department')">
-                    🏢 Tell me about CSE Department
+                  <button class="quick-action-btn" onclick="App.handleSendMessage('Find food near me')">
+                    Find food near me
                   </button>
                 </div>
               </div>
@@ -206,20 +180,23 @@
           <!-- Input Bar & Prompt Suggestions -->
           <div class="chat-input-area">
             <div class="suggested-prompts-bar">
-              <button class="prompt-pill" onclick="App.handleSendMessage('Route from Main Gate to AI Lab')">
-                📍 Main Gate ➔ AI Lab
+              <button class="prompt-pill" onclick="App.handleSendMessage('Where is the library?')">
+                Where is the library?
               </button>
-              <button class="prompt-pill" onclick="App.handleSendMessage('Route from Library to Auditorium')">
-                📍 Library ➔ Auditorium
+              <button class="prompt-pill" onclick="App.handleSendMessage('How do I reach Block A?')">
+                How do I reach Block A?
               </button>
-              <button class="prompt-pill" onclick="App.handleSendMessage('When does the library close?')">
-                🕒 Library Closing Time
+              <button class="prompt-pill" onclick="App.handleSendMessage('Find the CSM department')">
+                Find the CSM department
               </button>
-              <button class="prompt-pill" onclick="App.handleSendMessage('Where is the sports ground?')">
-                ⚽ Find Sports Ground
+              <button class="prompt-pill" onclick="App.handleSendMessage('Where are the labs?')">
+                Where are the labs?
               </button>
-              <button class="prompt-pill" onclick="App.handleSendMessage('Where is the examination cell?')">
-                📝 Examination Cell
+              <button class="prompt-pill" onclick="App.handleSendMessage('Find food near me')">
+                Find food near me
+              </button>
+              <button class="prompt-pill" onclick="App.handleSendMessage('Show nearby facilities')">
+                Show nearby facilities
               </button>
             </div>
 
@@ -228,7 +205,7 @@
                 type="text"
                 id="chat-input-field"
                 class="chat-input"
-                placeholder="Ask something about the campus (e.g., 'How to go from Block A to Canteen?')..."
+                placeholder="Ask about a place or how to get there..."
                 autocomplete="off"
               />
               <button id="btn-send-chat" class="btn-send" title="Send Query">
@@ -241,54 +218,25 @@
           </div>
         </div>
 
-        <!-- Chat Sidebar -->
-        <aside class="chat-sidebar">
-          <div class="ai-spec-card">
-            <h4 style="font-size: 1rem; font-weight: 700; margin-bottom: 0.5rem;">
-              🧠 Intelligent Agent Specs
-            </h4>
-            <ul class="spec-list">
-              <li><strong>NLP Engine:</strong> Python Service (/classify)</li>
-              <li><strong>Intent Classes:</strong> DIRECTIONS, TIMING, GENERAL, LOCATION_SEARCH</li>
-              <li><strong>Pathfinding:</strong> Java BFS Algorithm</li>
-              <li><strong>Graph:</strong> 27 Nodes, 39 Walkways</li>
-              <li><strong>Fallback:</strong> Java Rule-based NLP</li>
-            </ul>
-          </div>
-
-          <div class="ai-spec-card" style="background: rgba(0, 0, 0, 0.25);">
-            <h4 style="font-size: 0.95rem; font-weight: 700; color: var(--secondary-light); margin-bottom: 0.4rem;">
-              💡 Try Asking:
-            </h4>
-            <p style="font-size: 0.8rem; color: var(--text-secondary); line-height: 1.5;">
-              • "Where is the IoT Lab?"<br />
-              • "How do I reach Canteen from Block B?"<br />
-              • "What are the timings of the Principal Office?"<br />
-              • "Details about AI & DS department"
-            </p>
-          </div>
-        </aside>
       </div>
     </section>
 
-    <!-- -------------------------------------------------------------
-         TAB 3: NAVIGATION (BFS / DFS)
+        <!-- -------------------------------------------------------------
+          TAB 3: NAVIGATION
          ------------------------------------------------------------- -->
     <section id="tab-navigate" class="tab-view">
       <div style="margin-bottom: 1.5rem;">
-        <h2 class="section-title">Campus Route Navigator</h2>
-        <p class="section-subtitle">
-          Select starting point and destination to compute optimal campus routes using Graph Pathfinding Algorithms.
-        </p>
+        <h2 class="section-title">Where to?</h2>
+        <p class="section-subtitle">Choose a starting point and destination for a simple walking route.</p>
       </div>
 
       <div class="nav-layout">
         <!-- Route Selection Form -->
         <div class="card nav-form-card">
-          <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Route Planner</h3>
+          <h3 style="font-size: 1.15rem; font-weight: 700; margin-bottom: 0.5rem;">Plan your route</h3>
 
           <div class="form-group">
-            <label class="form-label">📍 Starting Location (Source)</label>
+            <label class="form-label" for="nav-source-select">From</label>
             <select id="nav-source-select" class="form-select">
               <option value="">Loading locations...</option>
             </select>
@@ -301,28 +249,14 @@
           </div>
 
           <div class="form-group">
-            <label class="form-label">🎯 Destination Location</label>
+            <label class="form-label" for="nav-dest-select">To</label>
             <select id="nav-dest-select" class="form-select">
               <option value="">Loading locations...</option>
             </select>
           </div>
 
-          <div class="form-group">
-            <label class="form-label">⚡ Graph Traversal Algorithm</label>
-            <div class="algo-switch-group">
-              <div class="algo-radio-card active" data-algo="BFS">
-                <h4>🔵 BFS (Shortest Path)</h4>
-                <p>Guarantees minimum hops in unweighted graph O(V+E)</p>
-              </div>
-              <div class="algo-radio-card" data-algo="DFS">
-                <h4>🟣 DFS (Exploration)</h4>
-                <p>Deep branch-first traversal for ADSA comparison</p>
-              </div>
-            </div>
-          </div>
-
           <button id="btn-find-route" class="btn-primary" style="width: 100%; justify-content: center; margin-top: 0.5rem;">
-            🧭 Find Route
+            Get Directions
           </button>
         </div>
 
@@ -330,9 +264,9 @@
         <div id="nav-result-container">
           <div class="card" style="text-align: center; padding: 3rem 1.5rem;">
             <div style="font-size: 2.5rem; margin-bottom: 1rem;">🧭</div>
-            <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">Ready to Navigate</h3>
+            <h3 style="font-size: 1.25rem; font-weight: 700; margin-bottom: 0.5rem;">Ready when you are</h3>
             <p style="color: var(--text-secondary); max-width: 450px; margin: 0 auto;">
-              Select a start and end location on the left, then click <strong>Find Route</strong> to generate step-by-step navigation instructions.
+              Pick your starting point and destination to see the best way across campus.
             </p>
           </div>
         </div>
@@ -346,17 +280,18 @@
       <div class="map-view-container">
         <div class="map-toolbar">
           <div>
-            <h3 style="font-size: 1.15rem; font-weight: 700;">🗺️ Interactive Schematic Campus Map</h3>
+            <h3 style="font-size: 1.15rem; font-weight: 700;">Campus Map</h3>
             <p style="font-size: 0.8rem; color: var(--text-secondary);">
-              Scroll to Zoom &bull; Drag to Pan &bull; Click any node to set route endpoints
+              Explore campus places and select one to see details or directions.
             </p>
           </div>
 
           <div class="map-controls-group">
-            <button class="map-btn" onclick="CampusMap.setZoom(CampusMap.zoom + 0.2)">➕ Zoom In</button>
-            <button class="map-btn" onclick="CampusMap.setZoom(CampusMap.zoom - 0.2)">➖ Zoom Out</button>
-            <button class="map-btn" onclick="CampusMap.resetView()">🔄 Reset View</button>
-            <button class="map-btn" onclick="CampusMap.clearRoute()">🧹 Clear Path</button>
+            <label class="map-search-wrap" for="map-location-search"><span aria-hidden="true">⌕</span><input id="map-location-search" list="campus-place-options" placeholder="Search map" autocomplete="off" /><button id="btn-map-search" aria-label="Find place">↵</button></label>
+            <button class="map-btn" aria-label="Zoom in" title="Zoom in" onclick="CampusMap.setZoom(CampusMap.zoom + 0.2)">+</button>
+            <button class="map-btn" aria-label="Zoom out" title="Zoom out" onclick="CampusMap.setZoom(CampusMap.zoom - 0.2)">−</button>
+            <button class="map-btn" onclick="CampusMap.resetView()">Reset</button>
+            <button class="map-btn" onclick="CampusMap.clearRoute()">Clear route</button>
           </div>
         </div>
 
@@ -367,17 +302,16 @@
 
         <!-- Map Legend -->
         <div class="map-legend card" style="padding: 0.75rem 1.25rem;">
-          <span style="font-weight: 700; color: var(--text-primary); margin-right: 0.5rem;">Legend:</span>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #818cf8;"></div> Academic</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #38bdf8;"></div> Laboratories</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #f59e0b;"></div> Admin</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #a855f7;"></div> Library</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #34d399;"></div> Food / Canteen</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #f43f5e;"></div> Hostels</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #fb923c;"></div> Sports</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #10b981; border: 1px solid white;"></div> Start Node</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #f43f5e; border: 1px solid white;"></div> Destination Node</div>
-          <div class="legend-item"><div class="legend-color-dot" style="background: #22d3ee; box-shadow: 0 0 6px #22d3ee;"></div> Active BFS Route</div>
+          <span style="font-weight: 700; color: var(--text-primary); margin-right: 0.5rem;">Places</span>
+          <div class="legend-item"><div class="legend-color-dot category-academic"></div> Departments</div>
+          <div class="legend-item"><div class="legend-color-dot category-lab"></div> Labs</div>
+          <div class="legend-item"><div class="legend-color-dot category-facility"></div> Facilities</div>
+          <div class="legend-item"><div class="legend-color-dot category-library"></div> Library</div>
+          <div class="legend-item"><div class="legend-color-dot category-food"></div> Food</div>
+          <div class="legend-item"><div class="legend-color-dot category-hostel"></div> Hostels</div>
+          <div class="legend-item"><div class="legend-color-dot category-start"></div> Start</div>
+          <div class="legend-item"><div class="legend-color-dot category-destination"></div> Destination</div>
+          <div class="legend-item"><div class="legend-color-dot category-route"></div> Route</div>
         </div>
       </div>
     </section>
@@ -387,27 +321,24 @@
          ------------------------------------------------------------- -->
     <section id="tab-locations" class="tab-view">
       <div style="margin-bottom: 1.5rem;">
-        <h2 class="section-title">Campus Directory & Facilities</h2>
-        <p class="section-subtitle">
-          Search and explore all 27 academic blocks, research laboratories, administrative offices, and student amenities.
-        </p>
+        <h2 class="section-title">Places on campus</h2>
+        <p class="section-subtitle">Find departments, study spaces, food, and the places you need every day.</p>
       </div>
 
       <div class="directory-controls">
         <div class="search-box">
           <span class="search-icon-pos">🔍</span>
-          <input type="text" id="directory-search-input" placeholder="Search by name, block, department, or keyword..." />
+                <input type="text" id="directory-search-input" placeholder="Search places..." aria-label="Search places" />
         </div>
 
         <div class="category-filter-chips">
           <button class="cat-chip active" data-category="ALL" onclick="App.filterByCategory('ALL')">All</button>
-          <button class="cat-chip" data-category="ACADEMIC" onclick="App.filterByCategory('ACADEMIC')">Academic</button>
+          <button class="cat-chip" data-category="ACADEMIC" onclick="App.filterByCategory('ACADEMIC')">Departments</button>
           <button class="cat-chip" data-category="LABORATORY" onclick="App.filterByCategory('LABORATORY')">Labs</button>
-          <button class="cat-chip" data-category="ADMINISTRATION" onclick="App.filterByCategory('ADMINISTRATION')">Admin</button>
           <button class="cat-chip" data-category="LIBRARY" onclick="App.filterByCategory('LIBRARY')">Library</button>
-          <button class="cat-chip" data-category="FOOD" onclick="App.filterByCategory('FOOD')">Food</button>
           <button class="cat-chip" data-category="HOSTEL" onclick="App.filterByCategory('HOSTEL')">Hostels</button>
-          <button class="cat-chip" data-category="SPORTS" onclick="App.filterByCategory('SPORTS')">Sports</button>
+          <button class="cat-chip" data-category="FOOD" onclick="App.filterByCategory('FOOD')">Food</button>
+          <button class="cat-chip" data-category="FACILITIES" onclick="App.filterByCategory('FACILITIES')">Facilities</button>
         </div>
       </div>
 
@@ -525,7 +456,7 @@
     <section id="tab-admin" class="tab-view">
       <div style="margin-bottom: 1.5rem; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 1rem;">
         <div>
-          <h2 class="section-title">Campus Graph Administration</h2>
+          <h2 class="section-title">KIETGo Administration</h2>
           <p class="section-subtitle">
             Manage vertices (locations), walkway edges, and reload campus topological data in real-time.
           </p>
@@ -533,6 +464,14 @@
         <button id="btn-admin-reload-graph" class="btn-secondary">
           🔄 Reload Graph from JSON
         </button>
+      </div>
+
+      <div class="admin-service-status">
+        <h3>System status</h3>
+        <div><span>Backend</span><strong id="admin-backend-status">Checking</strong></div>
+        <div><span>Java API</span><strong id="admin-java-status">Checking</strong></div>
+        <div><span>Python classifier</span><strong id="admin-python-status">Checking</strong></div>
+        <p>Current place data is a generic sample dataset, not a verified KIET Korangi campus map.</p>
       </div>
 
       <div class="admin-grid">
@@ -706,7 +645,7 @@
        ========================================================================= -->
   <footer class="app-footer">
     <p>
-      <strong>Campus Navigation Chatbot</strong> &bull; Academic Project demonstrating <strong>AI, ADSA, OOPJ & Python</strong> &bull; Apex Tech Campus
+      <strong>KIETGo</strong> &bull; Find your way. Go anywhere.
     </p>
   </footer>
 
@@ -714,5 +653,11 @@
   <script src="js/api.js"></script>
   <script src="js/map.js"></script>
   <script src="js/app.js"></script>
+  <nav class="mobile-nav" aria-label="Mobile navigation">
+    <button class="nav-btn active" data-tab="home"><span>⌂</span>Home</button>
+    <button class="nav-btn" data-tab="map"><span>⌖</span>Map</button>
+    <button class="nav-btn" data-tab="locations"><span>◇</span>Places</button>
+    <button class="nav-btn" data-tab="chat"><span>✳</span>AI</button>
+  </nav>
 </body>
 </html>

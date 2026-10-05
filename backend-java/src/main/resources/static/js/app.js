@@ -1,6 +1,6 @@
 /**
- * CampusNav AI — Main Application Controller
- * Handles UI events, chat state, navigation execution, directory filtering, and viva tools.
+ * KIETGo — Main Application Controller
+ * Handles campus search, chat, navigation, and the places directory.
  */
 
 const App = {
@@ -10,11 +10,13 @@ const App = {
     currentNavResult: null,
 
     async init() {
-        console.log('Initializing CampusNav AI Application...');
+        console.log('Initializing KIETGo...');
+        this.setupThemeToggle();
         this.setupTabNavigation();
         this.setupChatEvents();
         this.setupNavEvents();
         this.setupDirectoryEvents();
+        this.setupMapSearchEvents();
         this.setupAdminEvents();
         
         CampusMap.init('campus-svg-map');
@@ -30,6 +32,37 @@ const App = {
     // -------------------------------------------------------------
     // Tab Navigation
     // -------------------------------------------------------------
+    setupThemeToggle() {
+        const button = document.getElementById('theme-toggle');
+        const currentTheme = document.documentElement.dataset.theme === 'dark' ? 'dark' : 'light';
+        this.applyTheme(currentTheme, false);
+        if (button) {
+            button.addEventListener('click', () => {
+                const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
+                this.applyTheme(nextTheme);
+            });
+        }
+    },
+
+    applyTheme(theme, persist = true) {
+        const isDark = theme === 'dark';
+        document.documentElement.dataset.theme = isDark ? 'dark' : 'light';
+        const button = document.getElementById('theme-toggle');
+        if (button) {
+            const label = isDark ? 'Switch to light theme' : 'Switch to dark theme';
+            button.setAttribute('aria-label', label);
+            button.setAttribute('title', label);
+            button.setAttribute('aria-pressed', String(isDark));
+        }
+        if (persist) {
+            try {
+                localStorage.setItem('kietgo-theme', isDark ? 'dark' : 'light');
+            } catch {
+                // Keep the current theme for this session when storage is unavailable.
+            }
+        }
+    },
+
     setupTabNavigation() {
         const navBtns = document.querySelectorAll('.nav-btn');
         navBtns.forEach(btn => {
@@ -75,18 +108,25 @@ const App = {
         const badge = document.getElementById('header-health-badge');
         const dot = document.getElementById('header-health-dot');
         const text = document.getElementById('header-health-text');
+        const adminBackendStatus = document.getElementById('admin-backend-status');
+        const adminJavaStatus = document.getElementById('admin-java-status');
+        const adminPythonStatus = document.getElementById('admin-python-status');
 
         if (health.status === 'UP') {
+            const isPythonOk = health.pythonServiceStatus && health.pythonServiceStatus.includes('CONNECTED');
             if (badge) badge.style.borderColor = 'rgba(16, 185, 129, 0.4)';
             if (dot) dot.style.background = '#10b981';
-            if (text) {
-                const isPythonOk = health.pythonServiceStatus && health.pythonServiceStatus.includes('CONNECTED');
-                text.textContent = isPythonOk ? 'AI Engine & Java Online' : 'Java Online (Fallback Mode)';
-            }
+            if (text) text.textContent = 'Online';
+            if (adminBackendStatus) adminBackendStatus.textContent = 'Online';
+            if (adminJavaStatus) adminJavaStatus.textContent = 'Connected';
+            if (adminPythonStatus) adminPythonStatus.textContent = isPythonOk ? 'Connected' : 'Fallback active';
         } else {
             if (badge) badge.style.borderColor = 'rgba(244, 63, 94, 0.4)';
             if (dot) dot.style.background = '#f43f5e';
             if (text) text.textContent = 'Backend Offline';
+            if (adminBackendStatus) adminBackendStatus.textContent = 'Offline';
+            if (adminJavaStatus) adminJavaStatus.textContent = 'Unavailable';
+            if (adminPythonStatus) adminPythonStatus.textContent = 'Unavailable';
         }
     },
 
@@ -97,7 +137,9 @@ const App = {
 
         this.populateLocationDropdowns();
         CampusMap.renderMapData(this.locations, this.edges);
+        CampusMap.renderHomePreview(this.locations, this.edges);
         this.renderLocationsDirectory(this.locations);
+        this.renderFeaturedPlaces();
     },
 
     populateLocationDropdowns() {
@@ -133,13 +175,61 @@ const App = {
             }
         });
 
+        const suggestions = document.getElementById('campus-place-options');
+        if (suggestions) {
+            suggestions.innerHTML = this.locations.map(loc => `<option value="${this.escapeHtml(loc.name)}"></option>`).join('');
+        }
+
         // Default selections
         srcSelect.value = 'Main Gate';
-        dstSelect.value = 'AI Lab';
+        dstSelect.value = '';
         if (compareSrc && compareDst) {
             compareSrc.value = 'Main Gate';
             compareDst.value = 'AI Lab';
         }
+    },
+
+    routeFromHome() {
+        const search = document.getElementById('home-location-search');
+        const query = search ? search.value.trim().toLowerCase() : '';
+        const destination = this.locations.find(loc => loc.name.toLowerCase() === query)
+            || this.locations.find(loc => loc.name.toLowerCase().includes(query) && query.length > 1);
+
+        if (!destination) {
+            this.switchTab('locations');
+            const directorySearch = document.getElementById('directory-search-input');
+            if (directorySearch) {
+                directorySearch.value = search ? search.value : '';
+                directorySearch.dispatchEvent(new Event('input'));
+            }
+            return;
+        }
+
+        const source = document.getElementById('nav-source-select');
+        if (source && !source.value) source.value = this.locations.some(loc => loc.name === 'Main Gate') ? 'Main Gate' : this.locations[0]?.name || '';
+        this.setNavDestination(destination.name);
+        this.handleCalculateRoute();
+    },
+
+    openPlacesCategory(category) {
+        this.switchTab('locations');
+        this.filterByCategory(category);
+    },
+
+    setupMapSearchEvents() {
+        const input = document.getElementById('map-location-search');
+        const button = document.getElementById('btn-map-search');
+        const findPlace = () => {
+            const query = input ? input.value.trim().toLowerCase() : '';
+            const location = this.locations.find(place => place.name.toLowerCase() === query)
+                || this.locations.find(place => query && place.name.toLowerCase().includes(query));
+            if (!location) return;
+            CampusMap.focusLocation(location);
+        };
+        if (button) button.addEventListener('click', findPlace);
+        if (input) input.addEventListener('keydown', event => {
+            if (event.key === 'Enter') findPlace();
+        });
     },
 
     // -------------------------------------------------------------
@@ -209,7 +299,7 @@ const App = {
         div.innerHTML = `
             <div class="msg-bubble" style="display: flex; align-items: center; gap: 0.5rem; color: var(--text-muted);">
                 <div class="status-dot" style="background: var(--primary);"></div>
-                <span>Thinking & classifying intent...</span>
+            <span>Looking that up...</span>
             </div>
         `;
 
@@ -231,15 +321,14 @@ const App = {
         const msgDiv = document.createElement('div');
         msgDiv.className = 'chat-msg bot';
 
+        const cleanResponse = (resp.response || 'I could not find that information. Try another campus place.')
+            .replace(/\s*\(via\s+(?:BFS|DFS)\)/gi, '')
+            .replace(/\b(?:BFS|DFS)\b/gi, '')
+            .replace(/Campus(?:Nav)? AI(?: Assistant)?/gi, 'KIETGo')
+            .replace(/\b\d+\s+(?:campus locations|campus facilities|nodes|edges|walkway edges)\b/gi, 'campus places');
         let innerHtml = `
             <div class="msg-bubble">
-                <div style="display: flex; align-items: center; justify-content: space-between; gap: 0.5rem; margin-bottom: 0.4rem;">
-                    <span class="intent-chip">🎯 INTENT: ${resp.intent || 'UNKNOWN'}</span>
-                    <span style="font-size: 0.7rem; color: ${resp.pythonClassifierStatus === 'CONNECTED' ? '#34d399' : '#f59e0b'};">
-                        ${resp.pythonClassifierStatus === 'CONNECTED' ? '● Python NLP' : '▲ Java Fallback'}
-                    </span>
-                </div>
-                <div style="white-space: pre-line;">${this.formatMarkdown(resp.response || '')}</div>
+                <div style="white-space: pre-line;">${this.formatMarkdown(cleanResponse)}</div>
         `;
 
         // If Navigation result is embedded
@@ -249,34 +338,34 @@ const App = {
 
             innerHtml += `
                 <div class="route-inline-card">
-                    <div style="font-size: 0.8rem; font-weight: 700; color: var(--secondary-light); display: flex; justify-content: space-between;">
-                        <span>🧭 Route: ${nav.source} ➔ ${nav.destination}</span>
-                        <span>[${nav.algorithm}]</span>
-                    </div>
+                    <div class="route-summary-title">Shortest route <span>${nav.estimatedMinutes} min walk</span></div>
                     <div class="route-chain">
                         ${nav.path.map((node, i) => `
                             <span class="route-node-pill">${node}</span>
                             ${i < nav.path.length - 1 ? '<span class="route-arrow">➔</span>' : ''}
                         `).join('')}
                     </div>
-                    <div class="route-metrics-bar">
-                        <span>📏 <strong>${nav.distanceMeters}m</strong></span>
-                        <span>⏱️ <strong>${nav.estimatedMinutes} min</strong></span>
-                        <span>👣 <strong>${nav.steps} hops</strong></span>
-                    </div>
+                    <div class="route-metrics-bar"><span><strong>${nav.path.length}</strong> locations</span><span>${nav.source} to ${nav.destination}</span></div>
                     <button class="btn-primary" style="margin-top: 0.6rem; width: 100%; padding: 0.45rem; font-size: 0.8rem;"
                             onclick="App.viewCurrentRouteOnMap()">
-                        🗺️ View Highlighted on Campus Map
+                        Show Route
                     </button>
                 </div>
+            `;
+        } else if (resp.destination) {
+            innerHtml += `
+                <button class="btn-primary chat-route-action" onclick="App.startRouteTo('${this.escapeHtml(resp.destination).replace(/'/g, "\\'")}')">Show Route</button>
             `;
         }
 
         // Quick action chips
-        if (resp.quickActions && resp.quickActions.length > 0) {
+        const publicActions = (resp.quickActions || [])
+            .filter(action => !/\b(?:BFS|DFS|graph|algorithm|classifier|NLP|ADSA|Python|Java)\b/i.test(action))
+            .map(action => action.replace(/^Route to /i, 'Directions to '));
+        if (publicActions.length > 0) {
             innerHtml += `
                 <div class="chat-actions-row">
-                    ${resp.quickActions.map(action => `
+                    ${publicActions.map(action => `
                         <button class="quick-action-btn" onclick="App.handleQuickAction('${action.replace(/'/g, "\\'")}')">
                             ${action}
                         </button>
@@ -300,6 +389,13 @@ const App = {
         }
     },
 
+    startRouteTo(name) {
+        const source = document.getElementById('nav-source-select');
+        if (source && !source.value) source.value = 'Main Gate';
+        this.setNavDestination(name);
+        this.handleCalculateRoute();
+    },
+
     viewCurrentRouteOnMap() {
         if (!this.currentNavResult || !this.currentNavResult.path) return;
         this.switchTab('map');
@@ -313,12 +409,11 @@ const App = {
     },
 
     // -------------------------------------------------------------
-    // Navigation Component (BFS / DFS)
+    // Navigation Component
     // -------------------------------------------------------------
     setupNavEvents() {
         const findBtn = document.getElementById('btn-find-route');
         const swapBtn = document.getElementById('btn-swap-locations');
-        const algoCards = document.querySelectorAll('.algo-radio-card');
 
         if (findBtn) {
             findBtn.addEventListener('click', () => this.handleCalculateRoute());
@@ -336,13 +431,6 @@ const App = {
             });
         }
 
-        algoCards.forEach(card => {
-            card.addEventListener('click', () => {
-                algoCards.forEach(c => c.classList.remove('active'));
-                card.classList.add('active');
-            });
-        });
-
         // Compare button
         const compareBtn = document.getElementById('btn-run-comparison');
         if (compareBtn) {
@@ -353,14 +441,11 @@ const App = {
     async handleCalculateRoute() {
         const srcSelect = document.getElementById('nav-source-select');
         const dstSelect = document.getElementById('nav-dest-select');
-        const activeAlgoCard = document.querySelector('.algo-radio-card.active');
-
         const source = srcSelect ? srcSelect.value : '';
         const destination = dstSelect ? dstSelect.value : '';
-        const algorithm = activeAlgoCard ? activeAlgoCard.getAttribute('data-algo') : 'BFS';
 
         if (!source || !destination) {
-            alert('Please select both a Starting Location and a Destination.');
+            alert('Please choose both a starting place and a destination.');
             return;
         }
 
@@ -369,12 +454,12 @@ const App = {
             resContainer.innerHTML = `
                 <div class="card" style="text-align: center; padding: 2rem;">
                     <div class="status-dot" style="background: var(--secondary-light); margin: 0 auto 1rem;"></div>
-                    <p>Executing <strong>${algorithm} Pathfinding</strong> on campus graph...</p>
+                    <p>Finding the best walking route...</p>
                 </div>
             `;
         }
 
-        const navResp = await Api.findRoute(source, destination, algorithm);
+        const navResp = await Api.findRoute(source, destination, 'BFS');
         this.currentNavResult = navResp;
         this.renderNavigationResult(navResp);
     },
@@ -396,41 +481,25 @@ const App = {
         let html = `
             <div class="nav-result-card">
                 <div class="result-hero-box">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem;">
-                        <span class="hero-pill" style="margin: 0;">ALGORITHM: ${nav.algorithm} PATHFINDING</span>
-                        <span style="font-size: 0.8rem; font-family: var(--font-mono); color: var(--text-muted);">
-                            Time: ${nav.timeComplexity || 'O(V+E)'} | Space: ${nav.spaceComplexity || 'O(V)'}
-                        </span>
-                    </div>
                     <h3 style="font-size: 1.35rem; font-weight: 800;">
                         ${nav.source} <span style="color: var(--secondary-light);">➔</span> ${nav.destination}
                     </h3>
-                    <p style="color: var(--text-secondary); font-size: 0.9rem; margin-top: 0.25rem;">
-                        ${nav.message}
-                    </p>
+                        <p class="route-kicker">Shortest route</p>
 
                     <div class="result-metrics-grid">
                         <div class="metric-pill">
-                            <div class="metric-val">${nav.steps}</div>
-                            <div class="metric-name">Graph Hops</div>
-                        </div>
-                        <div class="metric-pill">
-                            <div class="metric-val">${nav.distanceMeters}m</div>
-                            <div class="metric-name">Total Distance</div>
-                        </div>
-                        <div class="metric-pill">
                             <div class="metric-val">${nav.estimatedMinutes} min</div>
-                            <div class="metric-name">Walking Time</div>
+                            <div class="metric-name">Approx. walking time</div>
                         </div>
                         <div class="metric-pill">
-                            <div class="metric-val">${nav.path.length}</div>
-                            <div class="metric-name">Nodes Visited</div>
+                            <div class="metric-val">${Math.max(0, nav.path.length - 2)}</div>
+                            <div class="metric-name">Stops</div>
                         </div>
                     </div>
 
                     <div style="display: flex; gap: 0.75rem; margin-top: 1.25rem;">
                         <button class="btn-primary" onclick="App.viewCurrentRouteOnMap()">
-                            🗺️ Visualize Route on Campus Map
+                            Start Navigation
                         </button>
                     </div>
                 </div>
@@ -438,7 +507,7 @@ const App = {
                 <!-- Turn by Turn Instructions -->
                 <div class="card">
                     <h4 style="font-size: 1.1rem; font-weight: 700; margin-bottom: 1rem;">
-                        👣 Step-by-Step Walking Directions
+                        Your route
                     </h4>
                     <div class="turn-by-turn-list">
                         ${nav.turnByTurnDirections && nav.turnByTurnDirections.length > 0
@@ -498,6 +567,10 @@ const App = {
 
         if (categoryName === 'ALL') {
             this.renderLocationsDirectory(this.locations);
+        } else if (categoryName === 'FACILITIES') {
+            this.renderLocationsDirectory(this.locations.filter(location => ['ADMINISTRATION', 'AMENITIES', 'HEALTH', 'PARKING', 'SPORTS'].includes(location.category)));
+        } else if (categoryName === 'OTHER') {
+            this.renderLocationsDirectory(this.locations.filter(location => ['ENTRY', 'OTHER'].includes(location.category)));
         } else {
             const filtered = this.locations.filter(l => l.category === categoryName);
             this.renderLocationsDirectory(filtered);
@@ -517,10 +590,10 @@ const App = {
             <div class="location-item-card">
                 <div>
                     <div class="loc-top-row">
-                        <span class="loc-cat-badge">${loc.category || 'LOCATION'}</span>
+                        <span class="loc-cat-badge">${this.categoryLabel(loc.category)}</span>
                         <span class="loc-timing-badge">🕒 ${loc.timings ? loc.timings.split('(')[0] : 'Open'}</span>
                     </div>
-                    <h3 class="loc-title">${loc.name}</h3>
+                    <h3 class="loc-title">${this.escapeHtml(loc.name)}</h3>
                     <p class="loc-pos">📍 ${loc.block || 'Campus Wing'} • ${loc.floor || 'Ground'}</p>
                     <p class="loc-desc" style="margin-top: 0.5rem;">${loc.description || ''}</p>
                 </div>
@@ -534,8 +607,8 @@ const App = {
 
                     <div style="display: flex; gap: 0.5rem;">
                         <button class="btn-primary" style="flex:1; padding: 0.45rem; font-size: 0.8rem;"
-                                onclick="App.setNavDestination('${loc.name.replace(/'/g, "\\'")}')">
-                            🧭 Navigate Here
+                                onclick="App.startRouteTo('${loc.name.replace(/'/g, "\\'")}')">
+                            Get Directions
                         </button>
                         <button class="btn-secondary" style="padding: 0.45rem 0.75rem; font-size: 0.8rem;"
                                 onclick="App.askAiAbout('${loc.name.replace(/'/g, "\\'")}')">
@@ -545,6 +618,27 @@ const App = {
                 </div>
             </div>
         `).join('');
+    },
+
+    renderFeaturedPlaces() {
+        const container = document.getElementById('home-featured-places');
+        if (!container) return;
+        const featured = this.locations.filter(location => ['LIBRARY', 'FOOD', 'LABORATORY', 'ACADEMIC'].includes(location.category)).slice(0, 4);
+        container.innerHTML = featured.map(location => `
+            <button class="featured-place" onclick="App.startRouteTo('${location.name.replace(/'/g, "\\'")}')">
+                <span class="featured-place-icon" aria-hidden="true">${this.categoryIcon(location.category)}</span>
+                <span><strong>${this.escapeHtml(location.name)}</strong><small>${this.categoryLabel(location.category)}${location.block ? ` · ${this.escapeHtml(location.block)}` : ''}</small></span>
+                <span class="featured-place-arrow" aria-hidden="true">↗</span>
+            </button>
+        `).join('');
+    },
+
+    categoryLabel(category) {
+        return ({ ACADEMIC: 'Department', LABORATORY: 'Lab', ADMINISTRATION: 'Facility', AMENITIES: 'Facility', FOOD: 'Food', HOSTEL: 'Hostel', LIBRARY: 'Library', SPORTS: 'Sports', HEALTH: 'Health', PARKING: 'Parking', ENTRY: 'Campus entrance', OTHER: 'Other' })[category] || 'Campus place';
+    },
+
+    categoryIcon(category) {
+        return ({ ACADEMIC: '⌂', LABORATORY: '◈', LIBRARY: '▤', FOOD: '⌁' })[category] || '⌖';
     },
 
     askAiAbout(locName) {

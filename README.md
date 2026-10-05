@@ -1,4 +1,8 @@
-# Campus Navigation Chatbot — AI-Based Smart Campus Wayfinding System
+# KIETGo — Smart Campus Navigation
+> Find your way. Go anywhere.
+
+> **Campus data status:** The runtime graph loads from `backend-java/src/main/resources/campus-data.json`. Its current entries identify an Apex Institute example campus and are not verified KIET Korangi locations. The frontend reads locations through the existing backend API and does not duplicate the dataset. Replace the runtime resource with verified KIET data before using this as an official campus guide. The root `data/campus-data.json` is an identical existing copy.
+
 ## 🚀 Live Demo
 👉 [Open Live Demo](https://campus-navigation-chatbot-xeu0.onrender.com)
 

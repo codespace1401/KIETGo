@@ -1,11 +1,13 @@
 /**
  * CampusNav API Client
  * Manages all REST API interactions with the Java Spring Boot Backend.
- * Uses relative URLs by default (/api/...) for seamless same-origin deployment in production and local dev.
+ * Uses same-origin URLs in production and the local backend for standalone dev-server previews.
  */
 
-const API_BASE = (typeof window !== 'undefined' && window.CAMPUS_API_BASE) 
-    ? window.CAMPUS_API_BASE 
+const API_BASE = typeof window !== 'undefined'
+    ? (window.CAMPUS_API_BASE || (['localhost', '127.0.0.1'].includes(window.location.hostname) && window.location.port !== '8080'
+        ? 'http://localhost:8080'
+        : ''))
     : '';
 
 const Api = {
@@ -33,8 +35,8 @@ const Api = {
             console.error('Chat API Error:', e);
             return {
                 intent: 'UNKNOWN',
-                response: 'Unable to reach the campus server. Please ensure the Java backend is running on port 8080.',
-                quickActions: ['Retry Query', 'Check System Status']
+                response: 'I’m having trouble reaching campus services right now. Please try again in a moment.',
+                quickActions: ['Try again']
             };
         }
     },
